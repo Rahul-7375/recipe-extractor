@@ -1,36 +1,62 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,700;0,900;1,700&display=swap');
 @import "tailwindcss";
 
+
 @theme {
-  --font-serif: "Georgia", serif;
-  --font-sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-serif: "Playfair Display", serif;
+  --font-sans: "Inter", sans-serif;
   
-  --color-ink: #1a1a1a;
-  --color-paper: #fdfcf9;
-  --color-accent: #8b4513;
-  --color-soft-border: #e2e2df;
+  --color-emerald: #10b981;
+  --color-emerald-light: #34d399;
+  --color-emerald-deep: #064e3b;
+  --color-obsidian: #020617;
+  --color-surface: #0f172a;
+  --color-surface-lighter: #1e293b;
+  --color-gold: #d4af37;
+  --color-amber: #f59e0b;
 }
 
 @layer base {
   body {
-    @apply bg-paper text-ink font-sans;
+    @apply bg-obsidian text-slate-100 font-sans selection:bg-emerald/30;
+    -webkit-font-smoothing: antialiased;
   }
 }
 
-.magazine-grid {
-  display: grid;
-  grid-template-columns: 280px 1fr 240px;
-  grid-template-rows: auto auto 1fr auto;
-  min-height: 100vh;
+@layer components {
+  .glass-card {
+    @apply bg-white/[0.03] border border-white/[0.05] backdrop-blur-xl rounded-2xl;
+  }
+  
+  .glass-button {
+    @apply bg-emerald/10 border border-emerald/20 text-emerald-light hover:bg-emerald/20 transition-all active:scale-95;
+  }
+  
+  .nav-item {
+    @apply flex items-center gap-3 px-4 py-3 rounded-xl transition-all cursor-pointer text-slate-400 font-medium hover:bg-white/[0.05] hover:text-white;
+  }
+  
+  .nav-item.active {
+    @apply bg-emerald/10 text-emerald shadow-[0_0_20px_rgba(16,185,129,0.1)];
+  }
+
+  .label-modern {
+    @apply text-[11px] uppercase font-bold text-emerald tracking-widest mb-1 block opacity-80;
+  }
+
+  .recipe-stat {
+    @apply flex flex-col items-center justify-center p-4 rounded-2xl bg-white/[0.02] border border-white/[0.05];
+  }
 }
 
-.label-tiny {
-  @apply text-[10px] uppercase font-bold text-accent tracking-[1.5px] mb-1 block;
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-obsidian;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-800 rounded-full border-4 border-obsidian hover:bg-slate-700;
 }
 
-.stat-val {
-  @apply font-serif text-lg font-bold;
-}
-
-.serif-title {
-  @apply font-serif leading-none text-ink;
-}

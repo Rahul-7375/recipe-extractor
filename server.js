@@ -21,10 +21,10 @@ if (!fs.existsSync(DB_FILE)) {
 }
 
 const getRecipesFromDB = () => JSON.parse(fs.readFileSync(DB_FILE, 'utf-8'));
-const saveRecipesToDB = (recipes: any[]) => fs.writeFileSync(DB_FILE, JSON.stringify(recipes, null, 2));
+const saveRecipesToDB = (recipes) => fs.writeFileSync(DB_FILE, JSON.stringify(recipes, null, 2));
 
 // Gemini Setup
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
+const ai = new GoogleGenAI(process.env.GEMINI_API_KEY || '');
 
 const recipeSchema = {
   type: Type.OBJECT,
@@ -67,10 +67,17 @@ const recipeSchema = {
       items: { type: Type.STRING }
     },
     shopping_list: {
-      type: Type.OBJECT,
-      additionalProperties: {
-        type: Type.ARRAY,
-        items: { type: Type.STRING }
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          category: { type: Type.STRING },
+          items: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING }
+          }
+        },
+        required: ["category", "items"]
       }
     },
     related_recipes: {
@@ -89,33 +96,44 @@ app.post('/api/extract', async (req, res) => {
   try {
     // Check cache
     const db = getRecipesFromDB();
-    const existing = db.find((r: any) => r.url === url);
+    const existing = db.find((r) => r.url === url);
     if (existing) return res.json(existing);
 
     // Scrape
     const response = await axios.get(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0' }
+      headers: { 
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Referer': 'https://www.google.com/',
+        'Cache-Control': 'no-cache',
+
+        'Pragma': 'no-cache'
+      }
     });
     const $ = cheerio.load(response.data);
-    $('script, style').remove();
     const text = $('body').text().replace(/\s+/g, ' ').trim().substring(0, 30000);
+    console.log(`Scraped ${text.length} characters from ${url}`);
 
     // LLM Extract
-    const result = await ai.models.generateContent({
+    const model = ai.getGenerativeModel({ 
       model: "gemini-1.5-flash",
-      contents: `Extract structured recipe data from this text: ${text}. URL: ${url}.
-      
-      CRITICAL: Assign a difficulty level (easy, medium, hard) by carefully evaluating:
-      - Number of steps: Easy (<5), Medium (5-10), Hard (>10).
-      - Ingredient complexity: Common pantry items vs. specialized/hard-to-find ingredients.
-      - Specialized techniques: Basic boiling/frying vs. techniques like sous-vide, tempering chocolate, or complex pastry work.`,
-      config: {
+      generationConfig: {
         responseMimeType: "application/json",
         responseSchema: recipeSchema
       }
     });
 
-    const recipeData = JSON.parse(result.text);
+    const prompt = `Extract structured recipe data from this text: ${text}. URL: ${url}.
+    
+    CRITICAL: Assign a difficulty level (easy, medium, hard) by carefully evaluating:
+    - Number of steps: Easy (<5), Medium (5-10), Hard (>10).
+    - Ingredient complexity: Common pantry items vs. specialized/hard-to-find ingredients.
+    - Specialized techniques: Basic boiling/frying vs. techniques like sous-vide, tempering chocolate, or complex pastry work.`;
+
+    const result = await model.generateContent(prompt);
+    const recipeData = JSON.parse(result.response.text());
+
     const newRecipe = {
       id: Date.now(),
       url,
@@ -127,23 +145,34 @@ app.post('/api/extract', async (req, res) => {
     saveRecipesToDB(db);
 
     res.json(newRecipe);
-  } catch (error: any) {
+  } catch (error) {
     console.error('Extraction error:', error);
     
     let status = 500;
     let message = 'Failed to extract recipe';
+    let details = error.message;
     
-    if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
-      status = 400;
-      message = 'Network error: Could not reach the provided URL. Please check the address.';
-    } else if (error.response) {
-      status = error.response.status;
-      message = `Scraping error: The website returned an error (${status}). Some sites block automated access.`;
-    } else if (error.message && error.message.includes('JSON')) {
-      message = 'AI Processing error: The extracted data was not in the correct format. This can happen with very complex pages.';
+    // Check if it's an Axios error (Scraping)
+    if (error.isAxiosError) {
+      if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
+        status = 400;
+        message = 'Network error: Could not reach the provided URL.';
+      } else if (error.response) {
+        status = error.response.status;
+        message = `Scraping error: The website returned an error (${status}). Some sites (like AllRecipes) block automated access. Try one of the sites I suggested!`;
+      }
+    } 
+    // Check if it's a Gemini/GoogleGenAI error
+    else if (error.message && error.message.includes('API_KEY')) {
+      status = 401;
+      message = 'AI Configuration Error: Invalid Gemini API Key. Please check your .env file.';
+    }
+    else if (error.message && error.message.includes('JSON')) {
+      status = 500;
+      message = 'Data processing error: The AI could not format the recipe correctly.';
     }
 
-    res.status(status).json({ error: message, details: error.message });
+    res.status(status).json({ error: message, details: details });
   }
 });
 
@@ -153,7 +182,7 @@ app.get('/api/recipes', (req, res) => {
 
 app.get('/api/recipes/:id', (req, res) => {
   const db = getRecipesFromDB();
-  const recipe = db.find((r: any) => r.id === parseInt(req.params.id));
+  const recipe = db.find((r) => r.id === parseInt(req.params.id));
   if (!recipe) return res.status(404).json({ error: 'Recipe not found' });
   res.json(recipe);
 });
