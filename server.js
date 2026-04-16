@@ -163,9 +163,9 @@ app.post('/api/extract', async (req, res) => {
       }
     } 
     // Check if it's a Gemini/GoogleGenAI error
-    else if (error.message && error.message.includes('API_KEY')) {
+    else if (error.message && (error.message.includes('API_KEY') || error.message.includes('API key not valid'))) {
       status = 401;
-      message = 'AI Configuration Error: Invalid Gemini API Key. Please check your .env file.';
+      message = 'AI Configuration Error: Your Gemini API Key is invalid. Please check your .env file and ensure you are using a key from Google AI Studio (starting with AIzaSy).';
     }
     else if (error.message && error.message.includes('JSON')) {
       status = 500;
