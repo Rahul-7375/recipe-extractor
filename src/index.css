@@ -1,0 +1,36 @@
+@import "tailwindcss";
+
+@theme {
+  --font-serif: "Georgia", serif;
+  --font-sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  
+  --color-ink: #1a1a1a;
+  --color-paper: #fdfcf9;
+  --color-accent: #8b4513;
+  --color-soft-border: #e2e2df;
+}
+
+@layer base {
+  body {
+    @apply bg-paper text-ink font-sans;
+  }
+}
+
+.magazine-grid {
+  display: grid;
+  grid-template-columns: 280px 1fr 240px;
+  grid-template-rows: auto auto 1fr auto;
+  min-height: 100vh;
+}
+
+.label-tiny {
+  @apply text-[10px] uppercase font-bold text-accent tracking-[1.5px] mb-1 block;
+}
+
+.stat-val {
+  @apply font-serif text-lg font-bold;
+}
+
+.serif-title {
+  @apply font-serif leading-none text-ink;
+}

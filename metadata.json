@@ -1,0 +1,6 @@
+{
+  "name": "Recipe Extractor & Meal Planner",
+  "description": "Extract structured recipe data from any blog URL using Gemini AI and organize your meal planning with history and shopping lists.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
